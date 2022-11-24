@@ -17,10 +17,29 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 from trainer import seed_everything
 
+# const
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
+
 working_dir = "/home/eegroup/ee50526/b09901062/hw3-JustinHuang1111"
 parser = argparse.ArgumentParser()
+config = {
+    "seed": 1314520,
+    "max_len": 55,
+    "batch_size": 32,
+    "outpath": os.path.join(working_dir, "p3"),
+    "val_interval": 1,
+    "pad_id": 0,
+    "vocab_size": 18202,
+    "d_model": 768,  # 768
+    "dec_ff_dim": 2048,
+    "dec_n_layers": 6,
+    "dec_n_heads": 12,  # 12 # 8
+    "dropout": 0.1,
+    "max_norm": 0.1,
+}
+
+# args
 parser.add_argument(
     "--tok",
     "-t",
@@ -38,29 +57,6 @@ parser.add_argument(
     help="Model path to load",
 )
 parser.add_argument("--cuda", "-c", type=str, default="cuda:1", help="choose a cuda")
-config = {
-    "seed": 1314520,
-    "max_len": 55,
-    "batch_size": 32,
-    "outpath": os.path.join(working_dir, "p3"),
-    "val_interval": 1,
-    "pad_id": 0,
-    "vocab_size": 18202,
-    "d_model": 768,  # 768
-    "dec_ff_dim": 2048,
-    "dec_n_layers": 6,
-    "dec_n_heads": 12,  # 12 # 8
-    "dropout": 0.1,
-    "max_norm": 0.1,
-}
-
-args = parser.parse_args()
-device = torch.device(args.cuda if (torch.cuda.is_available()) else "cpu")
-
-SEED = config["seed"]
-seed_everything(SEED)
-tokenizer_file = args.tok
-tokenizer = Tokenizer.from_file(tokenizer_file)
 
 
 def check_rgb(image):
@@ -69,9 +65,10 @@ def check_rgb(image):
     return image
 
 
-class ImgDataset(Dataset):
+# dataset
+class InfDataset(Dataset):
     def __init__(self, data_dir, imgsize=384):
-        super(ImgDataset, self).__init__()
+        super(InfDataset, self).__init__()
         self.data_dir = data_dir
         self.files = sorted(
             [
@@ -100,8 +97,17 @@ class ImgDataset(Dataset):
         return img, fname
 
 
+args = parser.parse_args()
+device = torch.device(args.cuda if (torch.cuda.is_available()) else "cpu")
+
+SEED = config["seed"]
+seed_everything(SEED)
+tokenizer_file = args.tok
+tokenizer = Tokenizer.from_file(tokenizer_file)
+
+
 img_dir = os.path.join(working_dir, "hw3_data/p2_data/images/val")
-test_set = ImgDataset(
+test_set = InfDataset(
     img_dir,
     384,
 )
@@ -126,7 +132,6 @@ transformer = Transformer(
 state = torch.load(args.model, device)
 transformer_state = state["models"]
 transformer.load_state_dict(transformer_state)
-seq_mask = []
 
 
 def remove_pad(tensor, mask):
